@@ -1,22 +1,50 @@
-// src/app.ts (Temporary test file)
-import express from 'express';
-import { prisma } from './utils/db';
-import { Request, Response } from 'express'; // Import types for request and response 
-import { validateIdentify } from './middleware/validation';
-import { handleIdentify } from './controllers/identityController';
+// src/app.ts
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import routes from './routes/index';
+
+dotenv.config();
+
 const app = express();
-app.use(express.json());
-app.post('/identify', validateIdentify, handleIdentify)
-app.get('/health', async (req: Request, res: Response) => {  // Add types (import below)
-  try {
-    const count = await prisma.contact.count({ where: { deletedAt: null } });
-    res.json({ status: 'OK', message: `DB connected! Active contacts: ${count}` });
-  } catch (error) {
-    res.status(500).json({ error: 'DB connection failed', details: error });
-  }
+const PORT = process.env.PORT || 3000;
+
+
+app.use(cors());                        // Allow frontend / Postman requests
+app.use(express.json());                // Parse JSON bodies
+app.use(express.urlencoded({ extended: true })); // Optional: form data (not needed for task)
+
+
+app.use('/', routes);
+
+
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Cannot ${req.method} ${req.originalUrl}`
+  });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Test server on http://localhost:${PORT}/health`);
+
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[ERROR]', err);
+
+  const status = err.status || 500;
+  const message = err.message || 'Internal Server Error';
+
+  res.status(status).json({
+    error: message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
 });
+
+app.listen(PORT, () => {
+  
+  console.log(` Server running on http://localhost:${PORT}`);
+  console.log(`Identify endpoint: POST http://localhost:${PORT}/identify`);
+  console.log(`Health check:     GET  http://localhost:${PORT}/health`);
+  console.log(`Environment:      ${process.env.NODE_ENV || 'development'}`);
+ 
+});
+
+export default app;
