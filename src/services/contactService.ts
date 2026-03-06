@@ -1,4 +1,4 @@
-// src/services/contactService.ts
+
 import { PrismaClient, LinkPrecedence } from '@prisma/client';
 import { ConsolidatedContact, IdentifyRequest } from '../types';
 import { prisma } from '../utils/db';
@@ -13,10 +13,10 @@ export async function identifyContact(input: IdentifyRequest): Promise<Consolida
 
   console.log(`[identify] Processing: email=${email}, phone=${phoneNumber}`);
 
-  // Using main prisma client directly (transaction disabled due to Render free tier timeout issues)
+  
   const tx = prisma;
 
-  // Step 1: Find matching active contacts
+ 
   const matches = await tx.contact.findMany({
     where: {
       deletedAt: null,
@@ -30,7 +30,7 @@ export async function identifyContact(input: IdentifyRequest): Promise<Consolida
   console.log(`[identify] Found ${matches.length} matching contacts`);
 
   if (matches.length === 0) {
-    // Step 4: Create new primary contact
+   
     const newContact = await tx.contact.create({
       data: {
         email,
@@ -44,7 +44,7 @@ export async function identifyContact(input: IdentifyRequest): Promise<Consolida
     return buildConsolidatedResponse([newContact], newContact.id);
   }
 
-  // Step 2: Find unique primary roots
+  
   const rootIds = await Promise.all(
     matches.map((match) => getRoot(tx, match.id))
   );
@@ -56,7 +56,7 @@ export async function identifyContact(input: IdentifyRequest): Promise<Consolida
   let groupContacts: Awaited<ReturnType<typeof getFullGroup>>;
 
   if (uniqueRootIds.length === 1) {
-    // Single existing group
+   
     primaryId = uniqueRootIds[0];
     groupContacts = await getFullGroup(tx, primaryId);
 
@@ -140,7 +140,7 @@ async function getFullGroup(tx: PrismaClient, primaryId: number): Promise<any[]>
 
     group.push(contact);
 
-    // Only traverse children (downward)
+    
     for (const child of contact.linkedFrom) {
       await traverse(child.id);
     }
@@ -153,7 +153,7 @@ async function getFullGroup(tx: PrismaClient, primaryId: number): Promise<any[]>
 function buildConsolidatedResponse(contacts: any[], primaryId: number): ConsolidatedContact {
   const primary = contacts.find((c) => c.id === primaryId)!;
 
-  // Collect unique values
+
   const emailsSet = new Set<string>();
   const phonesSet = new Set<string>();
 
@@ -165,7 +165,7 @@ function buildConsolidatedResponse(contacts: any[], primaryId: number): Consolid
   let emails = Array.from(emailsSet);
   let phoneNumbers = Array.from(phonesSet);
 
-  // Put primary values first if they exist
+
   if (primary.email && emails[0] !== primary.email) {
     const idx = emails.indexOf(primary.email);
     if (idx !== -1) {
@@ -180,7 +180,7 @@ function buildConsolidatedResponse(contacts: any[], primaryId: number): Consolid
     }
   }
 
-  // Secondary IDs (sorted)
+ 
   const secondaryIds = contacts
     .filter((c) => c.id !== primaryId)
     .map((c) => c.id)
